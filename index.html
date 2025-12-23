@@ -52,25 +52,25 @@
         #player-wrapper {
             width: 100%;
             max-width: 1200px;
-            aspect-ratio: 16 / 9;
+            aspect-ratio: 16 / 9; /* Mantiene la forma rettangolare */
             background: #000;
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 0 30px rgba(0, 210, 255, 0.1);
             display: none; 
-            position: relative;
+            position: relative; /* Fondamentale per il figlio absolute */
         }
         
         .visible { display: block !important; }
 
-        /* --- FIX PER CENTRARE IL PLAY BUTTON --- */
         #player {
+            /* Sganciamo il player dal flusso per fargli occupare tutto lo spazio */
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            /* Queste 3 righe centrano perfettamente il contenuto */
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            border: none;
         }
         /* --------------------------------------- */
 
