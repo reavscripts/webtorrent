@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webtor Player (No-Server)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f0f13;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { color: #00d2ff; text-shadow: 0 0 15px rgba(0, 210, 255, 0.5); margin-bottom: 10px; }
+        p { color: #888; margin-bottom: 30px; }
+
+        .input-container {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        input {
+            flex-grow: 1;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: #1a1a20;
+            color: white;
+            font-size: 16px;
+            outline: none;
+        }
+
+        input:focus { border-color: #00d2ff; }
+
+        button {
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #00d2ff, #007aff);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+            transition: transform 0.2s;
+        }
+
+        button:hover { transform: scale(1.05); }
+
+        #player-wrapper {
+            width: 100%;
+            max-width: 1000px;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.6);
+            min-height: 500px; /* Spazio riservato al player */
+            display: none; /* Nascosto finché non parte */
+        }
+        
+        .visible { display: block !important; }
+    </style>
+</head>
+<body>
+
+    <h1>Webtor Streamer</h1>
+    <p>Incolla un Magnet Link. Supporta MKV, AVI, 4K e Sottotitoli.</p>
+
+    <div class="input-container">
+        <input type="text" id="magnetInput" placeholder="magnet:?xt=urn:btih:...">
+        <button onclick="startWebtor()">Guarda Film</button>
+    </div>
+
+    <div id="player-wrapper">
+        <div id="player" style="width: 100%; height: 100%; min-height: 500px;"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@webtor/embed-sdk-js/dist/index.min.js"></script>
+
+    <script>
+        function startWebtor() {
+            const magnet = document.getElementById('magnetInput').value.trim();
+            const wrapper = document.getElementById('player-wrapper');
+            const playerDiv = document.getElementById('player');
+
+            if (!magnet) return alert("Inserisci un Magnet Link valido!");
+            if (!magnet.startsWith("magnet:")) return alert("Deve essere un link che inizia con magnet:");
+
+            // Resetta il player se c'era già un video
+            playerDiv.innerHTML = '';
+            wrapper.classList.add('visible');
+
+            // Configurazione Webtor
+            window.webtor = window.webtor || [];
+            window.webtor.push({
+                id: 'player',
+                magnet: magnet,
+                width: '100%',
+                height: '100%',
+                features: {
+                    continue: true,      // Ricorda dove eri rimasto
+                    p2pProgress: true,   // Mostra info peer
+                    title: true,         // Mostra titolo file
+                    settings: true,      // Abilita impostazioni qualità
+                    fullscreen: true,
+                    subtitles: true      // Supporto sottotitoli
+                },
+                on: function(e) {
+                    if (e.name == window.webtor.TORRENT_FETCHED) {
+                        console.log('Torrent trovato!', e.data);
+                    }
+                    if (e.name == window.webtor.TORRENT_ERROR) {
+                        console.log('Errore Torrent:', e.data);
+                    }
+                }
+            });
+        }
+    </script>
+
+</body>
+</html>
