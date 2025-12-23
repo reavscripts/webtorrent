@@ -1,64 +1,69 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hybrid Torrent Streamer</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #111; color: white; text-align: center; padding: 20px; }
-        input { padding: 10px; width: 70%; border-radius: 5px; border: none; }
-        button { padding: 10px 20px; background: #e50914; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;}
-        video { width: 100%; max-width: 800px; margin-top: 20px; background: black; }
-        #stats { margin-top: 10px; color: #aaa; font-size: 0.9em; }
-    </style>
-</head>
-<body>
+const express = require('express');
+const WebTorrent = require('webtorrent');
+const path = require('path');
 
-    <h1>Hybrid Torrent Player</h1>
-    <p>Questo server scarica via TCP/UDP e ti invia lo stream pulito.</p>
+const app = express();
+const client = new WebTorrent();
 
-    <div>
-        <input type="text" id="magnet" placeholder="Incolla Magnet Link qui...">
-        <button onclick="playVideo()">Riproduci</button>
-    </div>
+const PORT = process.env.PORT || 3000;
 
-    <div id="stats">In attesa...</div>
-    
-    <video id="videoPlayer" controls></video>
+// Serve i file statici dalla cartella 'public'
+app.use(express.static(path.join(__dirname, 'public')));
 
-    <script>
-        let interval = null;
-
-        function playVideo() {
-            const magnet = document.getElementById('magnet').value;
-            const video = document.getElementById('videoPlayer');
-            
-            if (!magnet) return alert("Inserisci un link!");
-
-            // 1. Costruiamo l'URL che punta al NOSTRO server backend
-            // encodeURIComponent è vitale per passare caratteri speciali nell'URL
-            const streamUrl = `/stream?magnet=${encodeURIComponent(magnet)}`;
-            
-            // 2. Diciamo al video player di caricare quell'URL
-            video.src = streamUrl;
-            video.play();
-
-            document.getElementById('stats').innerText = "Buffering dal server...";
-
-            // 3. Avviamo un piccolo loop per chiedere le statistiche al server
-            if (interval) clearInterval(interval);
-            interval = setInterval(() => {
-                fetch(`/stats?magnet=${encodeURIComponent(magnet)}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.error) return;
-                        const speed = (data.downloadSpeed / 1024 / 1024).toFixed(2);
-                        const progress = (data.progress * 100).toFixed(1);
-                        document.getElementById('stats').innerText = 
-                            `Server Download: ${progress}% | Velocità: ${speed} MB/s | Peers Server: ${data.peers}`;
-                    });
-            }, 2000);
+// --- AGGIUNTA FONDAMENTALE: Rotta esplicita per la Home Page ---
+app.get('/', (req, res) => {
+    const indexPath = path.join(__dirname, 'public', 'index.html');
+    res.sendFile(indexPath, (err) => {
+        if (err) {
+            console.error("ERRORE: Non trovo index.html!", err);
+            res.status(500).send("Errore Server: index.html mancante o cartella 'public' errata.");
         }
-    </script>
-</body>
-</html>
+    });
+});
+// -------------------------------------------------------------
+
+app.get('/stream', (req, res) => {
+    const magnet = req.query.magnet;
+    if (!magnet) return res.status(400).send('Manca il Magnet Link');
+
+    let torrent = client.get(magnet);
+    if (!torrent) torrent = client.add(magnet, { path: '/tmp/webtorrent' });
+
+    torrent.on('ready', () => {
+        const file = torrent.files.find(f => f.name.endsWith('.mp4') || f.name.endsWith('.mkv') || f.name.endsWith('.webm'));
+        if (!file) return res.status(404).send('Nessun video trovato');
+
+        const range = req.headers.range;
+        if (!range) {
+            res.writeHead(200, { 'Content-Length': file.length, 'Content-Type': 'video/mp4' });
+            file.createReadStream().pipe(res);
+        } else {
+            const parts = range.replace(/bytes=/, "").split("-");
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : file.length - 1;
+            const chunksize = (end - start) + 1;
+
+            res.writeHead(206, {
+                'Content-Range': `bytes ${start}-${end}/${file.length}`,
+                'Accept-Ranges': 'bytes',
+                'Content-Length': chunksize,
+                'Content-Type': 'video/mp4',
+            });
+            file.createReadStream({ start, end }).pipe(res);
+        }
+    });
+});
+
+app.get('/stats', (req, res) => {
+    const magnet = req.query.magnet;
+    const torrent = client.get(magnet);
+    if (torrent) {
+        res.json({ progress: torrent.progress, downloadSpeed: torrent.downloadSpeed, peers: torrent.numPeers });
+    } else {
+        res.json({ error: 'Torrent non attivo' });
+    }
+});
+
+app.listen(PORT, () => {
+    console.log(`Server avviato sulla porta ${PORT}`);
+});
