@@ -1,18 +1,14 @@
 {
-  "name": "webtorrent",
+  "name": "webtorrent-hybrid",
   "version": "1.0.0",
-  "description": "",
-  "main": "webtorrent.min.js",
+  "type": "module",   <--- AGGIUNGI QUESTA RIGA IMPORTANTE
+  "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "express": "^5.2.1",
-    "nodemon": "^3.1.11",
-    "webtorrent": "^2.8.5"
+    "express": "^4.21.0",
+    "webtorrent": "^2.5.0", 
+    "nodemon": "^3.1.0"
   }
 }
